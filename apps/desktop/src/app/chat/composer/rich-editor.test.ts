@@ -195,6 +195,38 @@ describe('normalizeComposerEditorDom', () => {
     expect(editor.querySelector(':scope > div')).toBeNull()
   })
 
+  // The composer root syncs (and so normalizes) the editor on every pointerdown in its tree,
+  // the "+" menu's portaled rows included. iOS WebKit's content-change observer turns a tap
+  // into a hover, and drops its click, when an editable element gains a renderer during the
+  // touch: re-creating the empty editor's placeholder break on every press swallowed every
+  // single tap on the composer and its menus (#145166). Normalized input must stay untouched.
+  it.each([
+    ['empty', (editor: HTMLElement) => editor.append(document.createElement('br'))],
+    ['text', (editor: HTMLElement) => editor.append('hello there')],
+    ['chip and text', (editor: HTMLElement) => editor.append(refChipElement('file', '`src/foo.ts`'), ' and more')]
+  ])('leaves an already normalized %s editor untouched', (_label, fill) => {
+    const editor = document.createElement('div')
+    editor.dataset.slot = RICH_INPUT_SLOT
+    editor.contentEditable = 'true'
+    fill(editor)
+    document.body.append(editor)
+
+    try {
+      normalizeComposerEditorDom(editor)
+      const nodes = Array.from(editor.childNodes)
+      const observer = new MutationObserver(() => undefined)
+      observer.observe(editor, { characterData: true, childList: true, subtree: true })
+
+      normalizeComposerEditorDom(editor)
+
+      expect(observer.takeRecords()).toEqual([])
+      expect(Array.from(editor.childNodes)).toEqual(nodes)
+      observer.disconnect()
+    } finally {
+      editor.remove()
+    }
+  })
+
   it('removes a trailing br after a ref chip', () => {
     const editor = document.createElement('div')
     editor.dataset.slot = RICH_INPUT_SLOT

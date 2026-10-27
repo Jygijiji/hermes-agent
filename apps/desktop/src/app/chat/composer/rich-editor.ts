@@ -28,6 +28,15 @@ function isEmptyTextNode(node: ChildNode | null): boolean {
   return node?.nodeType === Node.TEXT_NODE && !node.textContent
 }
 
+/** An editor holding nothing but the placeholder <br> is EMPTY. That <br> is
+ *  scaffolding normalizeComposerEditorDom adds so the contenteditable keeps
+ *  its height — not a line the user typed. Reading it as "\n" is how a
+ *  just-cleared composer stayed non-empty: the newline got stashed as the
+ *  session's draft and painted back on return. */
+function holdsOnlyPlaceholderBreak(el: HTMLElement): boolean {
+  return el.dataset.slot === RICH_INPUT_SLOT && el.childNodes.length === 1 && el.firstChild?.nodeName === 'BR'
+}
+
 /** The node before `node`, stepping over that litter. */
 function meaningfulPreviousSibling(node: ChildNode | null): ChildNode | null {
   let prev = node?.previousSibling ?? null
@@ -77,7 +86,7 @@ function composerCollapsedSelectionContainer(editor: HTMLElement): Node | null {
  *  whenever an edit lands next to a `contenteditable=false` chip, and counting
  *  them left an editor the user had emptied looking occupied. */
 export function markEditorEmptiness(editor: HTMLElement) {
-  if (Array.from(editor.childNodes).every(isEmptyTextNode)) {
+  if (Array.from(editor.childNodes).every(isEmptyTextNode) || holdsOnlyPlaceholderBreak(editor)) {
     editor.dataset.empty = ''
   } else {
     delete editor.dataset.empty
@@ -616,12 +625,7 @@ export function composerPlainText(node: Node): string {
     return el.dataset.refText
   }
 
-  // An editor holding nothing but the placeholder <br> is EMPTY. That <br> is
-  // scaffolding normalizeComposerEditorDom adds so the contenteditable keeps
-  // its height — not a line the user typed. Reading it as "\n" is how a
-  // just-cleared composer stayed non-empty: the newline got stashed as the
-  // session's draft and painted back on return.
-  if (el.dataset.slot === RICH_INPUT_SLOT && el.childNodes.length === 1 && el.firstChild?.nodeName === 'BR') {
+  if (holdsOnlyPlaceholderBreak(el)) {
     return ''
   }
 
@@ -935,9 +939,13 @@ export function normalizeComposerEditorDom(editor: HTMLElement) {
   }
 
   // A trailing <br> right after a chip / only whitespace is a phantom line.
+  // A lone <br> is the empty editor's placeholder (re-added below): keep the
+  // node. Swapping it on every sync gives the editor a fresh editable renderer
+  // per pointerdown, which iOS treats as revealed content: the tap becomes a
+  // hover and its click never fires.
   const last = editor.lastChild
 
-  if (last?.nodeName === 'BR') {
+  if (last?.nodeName === 'BR' && last !== editor.firstChild) {
     let prev: ChildNode | null = last.previousSibling
 
     while (prev?.nodeType === Node.TEXT_NODE && !(prev.textContent || '').trim()) {
