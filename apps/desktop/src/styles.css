@@ -871,22 +871,16 @@
   /* iOS keeps double-tap-to-zoom on every element that does not opt out, so a
      second tap on small text zooms the page instead of activating the control
      under the finger — and anything that only reveals itself on hover costs
-     that first tap, which reads as "a single tap does nothing". `manipulation`
-     restores single-tap activation and keeps pinch-zoom available. */
-  html[data-hermes-desktop-host='browser']
-    :is(
-      button,
-      [role='button'],
-      [role='option'],
-      [role='menuitem'],
-      [role='tab'],
-      [role='switch'],
-      [role='checkbox'],
-      a[href],
-      label,
-      summary,
-      select
-    ) {
+     that first tap, which reads as "a single tap does nothing".
+
+     Set on the root rather than a list of tags: the effective touch-action of a
+     touch is the intersection of the chain from the touched node up to its
+     nearest scroll container, so one declaration covers every control the app
+     renders — including the plain div rows, list items and inline spans that no
+     tag-or-role selector reaches. `manipulation` keeps single-tap activation,
+     panning and pinch-zoom; anything that needs raw touch (drag handles, the
+     pet, gesture surfaces) still overrides it locally. */
+  html[data-hermes-desktop-host='browser'] {
     touch-action: manipulation;
   }
 }

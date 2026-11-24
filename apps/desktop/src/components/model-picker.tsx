@@ -18,6 +18,7 @@ import { catalogProviderMatches, modelOptionsQueryKey, requestModelOptions } fro
 import { currentPickerSelection } from '@/lib/model-status-label'
 import { accountResetMs, formatReset, modelResetMs } from '@/lib/provider-limit'
 import { foldIncludes, normalize } from '@/lib/text'
+import { $touchPointer } from '@/lib/touch-interaction'
 import { formatPercentUsed, formatResetsIn } from '@/lib/usage-percent'
 import { cn } from '@/lib/utils'
 import { $customModels, addCustomModel, customModelCandidate, withCustomModels } from '@/store/custom-models'
@@ -91,6 +92,11 @@ export function ModelPickerDialog({
   // offered per provider even while it fuzzy-matches catalog rows.
   const [slugEntry, setSlugEntry] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
+  // A finger-opened picker must not summon the keyboard: focusing the search
+  // field resizes the visual viewport and shifts the whole sheet up before the
+  // user has asked to type. The field still focuses on an explicit tap, and
+  // "Add custom model…" focuses it deliberately (enterSlug).
+  const touchPointer = useStore($touchPointer)
 
   const modelOptions = useQuery({
     queryKey: modelOptionsQueryKey(profile, sessionId, ownerConnectionId),
@@ -202,7 +208,7 @@ export function ModelPickerDialog({
 
         <Command className="rounded-none bg-card" shouldFilter={false}>
           <CommandInput
-            autoFocus
+            autoFocus={!touchPointer}
             onValueChange={setSearch}
             placeholder={slugEntry ? copy.customModelPlaceholder : copy.search}
             ref={searchRef}
