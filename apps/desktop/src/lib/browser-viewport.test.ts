@@ -46,6 +46,9 @@ afterEach(() => {
   root.remove()
   document.documentElement.removeAttribute('data-hermes-desktop-host')
   document.documentElement.style.removeProperty('zoom')
+  document.documentElement.style.removeProperty('--browser-visible-height')
+  document.documentElement.style.removeProperty('--browser-visible-top')
+  document.documentElement.removeAttribute('data-browser-visible')
   vi.unstubAllGlobals()
 })
 
@@ -111,6 +114,32 @@ describe('browser visible viewport', () => {
     vi.stubGlobal('innerHeight', 638)
     resize(638, 76, 402 / 359)
     expect(root.hasAttribute('data-browser-viewport')).toBe(false)
+  })
+
+  it('publishes the measured visible area on <html> for portalled overlays, including when the shell is left alone', () => {
+    dispose = installBrowserViewport()
+
+    // At rest the visible area is the layout viewport; the metric still names
+    // it, so a dialog can size itself from one source on every host.
+    expect(document.documentElement.hasAttribute('data-browser-visible')).toBe(true)
+    expect(document.documentElement.style.getPropertyValue('--browser-visible-height')).toBe('800px')
+
+    resize(460, 25)
+    expect(document.documentElement.style.getPropertyValue('--browser-visible-height')).toBe('460px')
+    expect(document.documentElement.style.getPropertyValue('--browser-visible-top')).toBe('25px')
+
+    // iOS Safari reports the visible height as innerHeight, so the shell fit
+    // stands down — but a dialog that sized itself from #root would still sit
+    // under the keyboard. The published metric must not stand down with it.
+    vi.stubGlobal('innerHeight', 460)
+    resize(460, 25)
+    expect(root.hasAttribute('data-browser-viewport')).toBe(false)
+    expect(document.documentElement.style.getPropertyValue('--browser-visible-height')).toBe('460px')
+
+    dispose()
+    dispose = undefined
+    expect(document.documentElement.hasAttribute('data-browser-visible')).toBe(false)
+    expect(document.documentElement.style.getPropertyValue('--browser-visible-height')).toBe('')
   })
 
   it('leaves native/missing-API hosts alone and releases coalesced listeners and layout on teardown', () => {

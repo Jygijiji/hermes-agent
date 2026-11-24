@@ -867,6 +867,28 @@
   html[data-hermes-desktop-host='browser'] [data-slot='composer-rich-input'] {
     font-size: max(16px, var(--conversation-text-font-size));
   }
+
+  /* iOS keeps double-tap-to-zoom on every element that does not opt out, so a
+     second tap on small text zooms the page instead of activating the control
+     under the finger — and anything that only reveals itself on hover costs
+     that first tap, which reads as "a single tap does nothing". `manipulation`
+     restores single-tap activation and keeps pinch-zoom available. */
+  html[data-hermes-desktop-host='browser']
+    :is(
+      button,
+      [role='button'],
+      [role='option'],
+      [role='menuitem'],
+      [role='tab'],
+      [role='switch'],
+      [role='checkbox'],
+      a[href],
+      label,
+      summary,
+      select
+    ) {
+    touch-action: manipulation;
+  }
 }
 
 .dither {
@@ -4014,6 +4036,19 @@ html[data-hermes-desktop-host='browser'] #root[data-browser-viewport] {
   position: relative;
   top: var(--browser-viewport-top);
   height: var(--browser-viewport-height);
+}
+
+/* Radix dialogs portal to <body>, outside #root, so they inherit neither the
+   fit above nor the metric it is derived from. On a Webapp whose keyboard
+   leaves the layout viewport intact (iOS), an 85vh shell centres on a screen it
+   cannot reach and the list plus the dialog footer sit under the keyboard —
+   the model picker at phone width is the visible case. Anchor portalled dialog
+   shells to the measured visible area instead. The `100dvh` fallback keeps
+   native Desktop — which publishes no metric and so never matches this rule's
+   attribute — on its existing geometry. */
+html[data-hermes-desktop-host='browser'][data-browser-visible] [data-slot='dialog-content'] {
+  top: calc(var(--browser-visible-top, 0px) + var(--browser-visible-height, 100dvh) / 2);
+  max-height: min(85dvh, calc(var(--browser-visible-height, 100dvh) - 2rem));
 }
 
 html[data-hermes-desktop-host='browser'] [data-contrib-shell] {
